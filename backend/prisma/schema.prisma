@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  peserta
+  admin
+}
+
+enum Kategori {
+  teknis
+  manajerial
+  sosio
+}
+
+enum ModuleType {
+  video
+  ebook
+  audio
+  pdf
+}
+
+enum EnrollmentStatus {
+  belum
+  berjalan
+  selesai
+}
+
+enum SubmissionStatus {
+  menunggu
+  dinilai
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  nama          String
+  nip           String?
+  jabatan       String?
+  instansi      String?
+  unit          String?
+  role          Role     @default(peserta)
+  points        Int      @default(0)
+  jpTahunIni    Float    @default(0)
+  jpTarget      Float    @default(20)
+  createdAt     DateTime @default(now())
+
+  enrollments      Enrollment[]
+  quizAttempts     QuizAttempt[]
+  catAttempts      CatAttempt[]
+  certificates     Certificate[]
+  forumPosts       ForumPost[]
+  taskSubmissions  TaskSubmission[]
+  mentoringSlots   MentoringSlot[] @relation("BookedSlots")
+  badges           UserBadge[]
+}
+
+model Badge {
+  id    String @id // e.g. "first_course"
+  nama  String
+  desc  String
+  glyph String
+  users UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  badgeId  String
+  awardedAt DateTime @default(now())
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model Course {
+  id          String     @id @default(cuid())
+  judul       String
+  kategori    Kategori
+  deskripsi   String
+  jp          Float
+  competency  String[]   // tag kompetensi, dipakai mesin rekomendasi
+  createdAt   DateTime   @default(now())
+
+  modules      Module[]
+  preTest      QuizQuestion[] @relation("PreTest")
+  postTest     QuizQuestion[] @relation("PostTest")
+  enrollments  Enrollment[]
+  liveClasses  LiveClass[]
+  forumThreads ForumThread[]
+  tasks        Task[]
+}
+
+model Module {
+  id       String     @id @default(cuid())
+  courseId String
+  judul    String
+  tipe     ModuleType
+  menit    Int
+  urutan   Int        @default(0)
+  course   Course     @relation(fields: [courseId], references: [id])
+
+  completions ModuleCompletion[]
+}
+
+model Enrollment {
+  id           String           @id @default(cuid())
+  userId       String
+  courseId     String
+  status       EnrollmentStatus @default(belum)
+  preScore     Int?
+  postScore    Int?
+  certIssued   Boolean          @default(false)
+  jpEarned     Float            @default(0)
+  updatedAt    DateTime         @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model ModuleCompletion {
+  id          String   @id @default(cuid())
+  moduleId    String
+  userId      String
+  completedAt DateTime @default(now())
+  module      Module   @relation(fields: [moduleId], references: [id])
+
+  @@unique([moduleId, userId])
+}
+
+// Pre/Post test question bank, tied to a course either as pretest or posttest
+model QuizQuestion {
+  id            String  @id @default(cuid())
+  preTestCourse  Course? @relation("PreTest", fields: [preTestCourseId], references: [id])
+  preTestCourseId String?
+  postTestCourse Course? @relation("PostTest", fields: [postTestCourseId], references: [id])
+  postTestCourseId String?
+  soal          String
+  opsi          String[]
+  jawabanBenar  Int
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  jenis     String   // 'pre' | 'post'
+  skor      Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CatExam {
+  id          String @id @default(cuid())
+  judul       String
+  durasiMenit Int
+  soal        CatQuestion[]
+  attempts    CatAttempt[]
+}
+
+model CatQuestion {
+  id           String   @id @default(cuid())
+  examId       String
+  kategori     Kategori
+  soal         String
+  opsi         String[]
+  jawabanBenar Int
+  exam         CatExam  @relation(fields: [examId], references: [id])
+}
+
+model CatAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  examId    String
+  totalSkor Int
+  perKategori Json
+  lulus     Boolean
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  exam      CatExam  @relation(fields: [examId], references: [id])
+}
+
+model Certificate {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  kodeVerifikasi String @unique
+  pdfPath     String?
+  issuedAt    DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model LiveClass {
+  id          String   @id @default(cuid())
+  courseId    String?
+  judul       String
+  pengajar    String
+  tanggal     DateTime
+  jitsiRoom   String   @unique
+  course      Course?  @relation(fields: [courseId], references: [id])
+}
+
+model ForumThread {
+  id       String @id @default(cuid())
+  courseId String
+  judul    String
+  course   Course @relation(fields: [courseId], references: [id])
+  posts    ForumPost[]
+}
+
+model ForumPost {
+  id        String      @id @default(cuid())
+  threadId  String
+  userId    String
+  isi       String
+  createdAt DateTime    @default(now())
+  thread    ForumThread @relation(fields: [threadId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+}
+
+model Task {
+  id         String @id @default(cuid())
+  courseId   String
+  judul      String
+  instruksi  String
+  course     Course @relation(fields: [courseId], references: [id])
+  submissions TaskSubmission[]
+}
+
+model TaskSubmission {
+  id        String            @id @default(cuid())
+  taskId    String
+  userId    String
+  teks      String
+  nilai     Int?
+  feedback  String?
+  status    SubmissionStatus  @default(menunggu)
+  createdAt DateTime          @default(now())
+  task      Task              @relation(fields: [taskId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
+}
+
+model Mentor {
+  id        String @id @default(cuid())
+  nama      String
+  keahlian  String
+  slots     MentoringSlot[]
+}
+
+model MentoringSlot {
+  id         String    @id @default(cuid())
+  mentorId   String
+  tanggal    DateTime
+  bookedById String?
+  mentor     Mentor    @relation(fields: [mentorId], references: [id])
+  bookedBy   User?     @relation("BookedSlots", fields: [bookedById], references: [id])
+}
