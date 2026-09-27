@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { -webkit-font-smoothing: antialiased; }
+h1, h2, h3, .display { font-family: 'Fraunces', serif; }
+
+.btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-semibold border transition; }
+.btn-primary { @apply bg-primary border-primary text-white hover:bg-primarydark; }
+.btn-secondary { @apply bg-transparent border-primary text-primary hover:bg-primarysoft; }
+.btn-ghost { @apply bg-transparent border-line text-inksoft hover:bg-surface2 hover:text-ink; }
+
+.panel { @apply bg-surface border border-line rounded-sm p-5; }
+.tag { @apply inline-block px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-surface2 text-inksoft; }
+.tag-teal { @apply bg-primarysoft text-primarydark; }
+.tag-gold { @apply bg-accentsoft text-[#8a5b13]; }
+.tag-slate { @apply bg-[#DCE5EA] text-slateasn; }
+
+input, textarea, select {
+  @apply w-full border border-line rounded-sm px-3 py-2 text-sm bg-surface;
+}
